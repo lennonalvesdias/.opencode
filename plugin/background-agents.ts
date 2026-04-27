@@ -48,6 +48,7 @@ async function generateMetadata(
 	client: OpencodeClient,
 	resultContent: string,
 	parentID: string,
+	smallModel: string | null,
 	debugLog: (msg: string) => Promise<void>,
 ): Promise<GeneratedMetadata> {
 	const fallbackMetadata = (): GeneratedMetadata => {
@@ -60,18 +61,15 @@ async function generateMetadata(
 		return { title, description }
 	}
 
+	// Early exit: no small_model configured — skip session creation entirely
+	if (!smallModel) {
+		await debugLog("generateMetadata: No small_model configured, using fallback")
+		return fallbackMetadata()
+	}
+
+	await debugLog(`generateMetadata: Using small_model ${smallModel}`)
+
 	try {
-		// Get config to check for small_model
-		const config = await client.config.get()
-		const configData = config.data as { small_model?: string } | undefined
-
-		if (!configData?.small_model) {
-			await debugLog("generateMetadata: No small_model configured, using fallback")
-			return fallbackMetadata()
-		}
-
-		await debugLog(`generateMetadata: Using small_model ${configData.small_model}`)
-
 		// Create a session for metadata generation
 		const session = await client.session.create({
 			body: {
@@ -186,6 +184,8 @@ interface Delegation {
 	title?: string
 	description?: string
 	result?: string
+	// Timer reference for cancellation on early completion
+	timeoutTimer?: ReturnType<typeof setTimeout>
 }
 
 interface DelegateInput {
@@ -319,11 +319,29 @@ class DelegationManager {
 	private log: Logger
 	// Track pending delegations per parent session for batched notifications
 	private pendingByParent: Map<string, Set<string>> = new Map()
+	// Cache for config values to avoid repeated config.get() calls
+	private cachedSmallModel: string | null | undefined = undefined // undefined = not yet fetched
 
 	constructor(client: OpencodeClient, baseDir: string, log: Logger) {
 		this.client = client
 		this.baseDir = baseDir
 		this.log = log
+	}
+
+	/**
+	 * Resolve small_model from config with memoization.
+	 * Returns null if not configured, string if configured.
+	 */
+	private async resolveSmallModel(): Promise<string | null> {
+		if (this.cachedSmallModel !== undefined) return this.cachedSmallModel
+		try {
+			const config = await this.client.config.get()
+			const configData = config.data as { small_model?: string } | undefined
+			this.cachedSmallModel = configData?.small_model ?? null
+		} catch {
+			this.cachedSmallModel = null
+		}
+		return this.cachedSmallModel
 	}
 
 	/**
@@ -387,8 +405,11 @@ class DelegationManager {
 			throw new Error("Failed to generate unique delegation ID after 10 attempts")
 		}
 
-		// Validate agent exists before creating session
-		const agentsResult = await this.client.app.agents({})
+		// Validate agent and check write capability in parallel (avoid sequential API calls)
+		const [agentsResult, { isReadOnly }] = await Promise.all([
+			this.client.app.agents({}),
+			parseAgentWriteCapability(this.client, input.agent, this.log),
+		])
 		const agents = (agentsResult.data ?? []) as {
 			name: string
 			description?: string
@@ -408,7 +429,6 @@ class DelegationManager {
 		}
 
 		// Check if agent is read-only (Early Exit + Fail Fast)
-		const { isReadOnly } = await parseAgentWriteCapability(this.client, input.agent, this.log)
 		if (!isReadOnly) {
 			throw new Error(
 				`Agent "${input.agent}" is write-capable and requires the native \`task\` tool for proper undo/branching support.\n\n` +
@@ -465,8 +485,8 @@ class DelegationManager {
 			`Delegation added to map. Current delegations: ${Array.from(this.delegations.keys()).join(", ")}`,
 		)
 
-		// Set a timer for the global max run time
-		setTimeout(() => {
+		// Set a timer for the global max run time, storing ref for cancellation
+		delegation.timeoutTimer = setTimeout(() => {
 			const current = this.delegations.get(delegation.id)
 			if (current && current.status === "running") {
 				this.handleTimeout(delegation.id)
@@ -561,6 +581,12 @@ class DelegationManager {
 
 		await this.debugLog(`handleSessionIdle for delegation ${delegation.id}`)
 
+		// Cancel the timeout timer — delegation completed before limit
+		if (delegation.timeoutTimer) {
+			clearTimeout(delegation.timeoutTimer)
+			delegation.timeoutTimer = undefined
+		}
+
 		delegation.status = "complete"
 		delegation.completedAt = new Date()
 
@@ -568,8 +594,9 @@ class DelegationManager {
 		const result = await this.getResult(delegation)
 		delegation.result = result
 
-		// Generate title and description using small model
-		const metadata = await generateMetadata(this.client, result, delegation.sessionID, (msg) =>
+		// Generate title and description using small model (config cached after first call)
+		const smallModel = await this.resolveSmallModel()
+		const metadata = await generateMetadata(this.client, result, delegation.sessionID, smallModel, (msg) =>
 			this.debugLog(msg),
 		)
 		delegation.title = metadata.title

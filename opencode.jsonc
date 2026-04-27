@@ -15,7 +15,7 @@
 		// Orchestrators
 		"plan": {
 			// "model": "anthropic/claude-opus-4-6", // opus: deep strategic reasoning, no code writing
-			"model": "github-copilot/claude-opus-4.6",
+			"model": "github-copilot/claude-opus-4.7",
 			"temperature": 0.3,
 			"reasoningEffort": "high",
 			"textVerbosity": "low",
@@ -52,7 +52,7 @@
 			// "model": "anthropic/claude-sonnet-4-6", // sonnet: excellent at code, cost-effective
 			"model": "github-copilot/claude-sonnet-4.6",
 			"temperature": 0.2,
-			"reasoningEffort": "high",
+			"reasoningEffort": "medium",
 			"textVerbosity": "low",
 			"permission": {
 				"context7_*": "deny",
@@ -108,7 +108,16 @@
 					"hostname": "allow",
 					"whoami": "allow",
 					"which *": "allow",
-					"realpath *": "allow"
+					"realpath *": "allow",
+					"dir *": "allow",
+					"type *": "allow",
+					"Get-ChildItem*": "allow",
+					"Get-Content*": "allow",
+					"Select-String*": "allow",
+					"Measure-Object*": "allow",
+					"Get-Item*": "allow",
+					"Resolve-Path*": "allow",
+					"$env:*": "allow"
 				}
 			}
 		},
@@ -168,7 +177,16 @@
 					"uniq *": "allow",
 					"cut *": "allow",
 					"awk *": "allow",
-					"tr *": "allow"
+					"tr *": "allow",
+					"Select-String*": "allow",
+					"ConvertFrom-Json*": "allow",
+					"Measure-Object*": "allow",
+					"Sort-Object*": "allow",
+					"Select-Object*": "allow",
+					"Get-Content*": "allow",
+					"[Convert]::ToBase64String*": "allow",
+					"Resolve-DnsName *": "allow",
+					"nslookup *": "allow"
 				}
 			}
 		},
@@ -226,17 +244,17 @@
 		"context7": {
 			"type": "remote",
 			"url": "https://mcp.context7.com/mcp",
-			"enabled": true
+			"enabled": false
 		},
 		"exa": {
 			"type": "remote",
 			"url": "https://mcp.exa.ai/mcp",
-			"enabled": true
+			"enabled": false
 		},
 		"gh_grep": {
 			"type": "remote",
 			"url": "https://mcp.grep.app",
-			"enabled": true
+			"enabled": false
 		},
 		"vercel": {
 			"type": "remote",
@@ -245,13 +263,13 @@
 		},
 		"railway": {
 			"type": "local",
-			"command": ["npx", "-y", "@railway/mcp-server"],
+			"command": ["bunx", "--bun", "@railway/mcp-server"],
 			"enabled": true
 		}
 	},
 	"plugin": [
 		"@tarquinen/opencode-dcp@1.2.7",
 		"@franlol/opencode-md-table-formatter@0.0.3",
-		"@plannotator/opencode@latest"
+		"@plannotator/opencode@0.19.1"
 	]
 }
