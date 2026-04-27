@@ -21,7 +21,8 @@ Personal OpenCode configuration with a multi-agent orchestration system, plugin 
 │   ├── frontend-philosophy/
 │   ├── plan-protocol/
 │   ├── plan-review/
-│   └── code-review/
+│   ├── code-review/
+│   └── karpathy-guidelines/
 └── plugin/                 # TypeScript plugins
     ├── background-agents.ts
     ├── workspace-plugin.ts
@@ -77,6 +78,9 @@ Skills are loaded on demand by agents using the `skill` tool.
 | `code-review` | `reviewer` | 4-layer review methodology |
 | `plan-protocol` | `plan`, `build` | Plan format and citation rules |
 | `plan-review` | `reviewer` | Plan-specific review criteria |
+| `karpathy-guidelines` | all (via `philosophy/AGENTS.md`) | 4 meta-behavioral principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution |
+
+> `karpathy-guidelines` is embedded directly into `philosophy/AGENTS.md` so its principles are always active — no explicit skill load required. The skill file serves as detailed reference.
 
 ### The 5 Laws (code-philosophy)
 
