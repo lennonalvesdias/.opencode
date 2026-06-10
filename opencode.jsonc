@@ -14,8 +14,8 @@
 	"agent": {
 		// Orchestrators
 		"plan": {
-			// "model": "anthropic/claude-opus-4-6", // opus: deep strategic reasoning, no code writing
-			"model": "github-copilot/claude-opus-4.7",
+			// "model": "anthropic/claude-opus-4.7", // opus: deep strategic reasoning, no code writing
+			"model": "github-copilot/claude-opus-4.8",
 			"temperature": 0.3,
 			"reasoningEffort": "high",
 			"textVerbosity": "low",
@@ -50,7 +50,7 @@
 		// Implementation
 		"coder": {
 			// "model": "anthropic/claude-sonnet-4-6", // sonnet: excellent at code, cost-effective
-			"model": "github-copilot/claude-sonnet-4.6",
+			"model": "github-copilot/claude-fable-5",
 			"temperature": 0.2,
 			"reasoningEffort": "medium",
 			"textVerbosity": "low",
